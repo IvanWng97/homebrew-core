@@ -3,11 +3,10 @@ class Mysql < Formula
   # FIXME: Actual homepage fails audit due to Homebrew's user-agent
   # homepage "https://dev.mysql.com/doc/refman/9.3/en/"
   homepage "https://github.com/mysql/mysql-server"
-  url "https://cdn.mysql.com/Downloads/MySQL-9.6/mysql-9.6.0.tar.gz"
-  mirror "https://repo.mysql.com/apt/ubuntu/pool/mysql-innovation/m/mysql-community/mysql-community_9.6.0.orig.tar.gz"
-  sha256 "240061d869d5ae188c9a333845928899e9d963ccbd67865a8a2e4b6fcb67178c"
+  url "https://cdn.mysql.com/Downloads/MySQL-9.7/mysql-9.7.1.tar.gz"
+  mirror "https://repo.mysql.com/apt/ubuntu/pool/mysql-innovation/m/mysql-community/mysql-community_9.7.1.orig.tar.gz"
+  sha256 "dabff263022be6a09151c21812322873437e0d77aec8c4cc7381882c3ea1aeae"
   license "GPL-2.0-only" => { with: "Universal-FOSS-exception-1.0" }
-  revision 3
 
   livecheck do
     url "https://dev.mysql.com/downloads/mysql/?tpl=files&os=src"
@@ -112,7 +111,14 @@ class Mysql < Formula
       -DWITH_ZLIB=system
       -DWITH_ZSTD=system
       -DWITH_UNIT_TESTS=OFF
+      -DWITH_MYSQL_SERVER_TELEMETRY=OFF
+      -DWITH_MYSQL_CLIENT_TELEMETRY=OFF
     ]
+
+    if OS.linux?
+      args <<  "-DCURL_LIBRARY=#{Formula["curl"].opt_lib}"
+      args <<  "-DCURL_INCLUDE_DIR=#{Formula["curl"].opt_include}"
+    end
 
     system "cmake", "-S", ".", "-B", "build", *args, *std_cmake_args
     system "cmake", "--build", "build"
