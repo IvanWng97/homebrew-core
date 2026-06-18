@@ -76,11 +76,7 @@ class Gcc < Formula
     #  - Cobol, not fully stable yet
     #  - Go, currently not supported on macOS
     #  - BRIG
-    languages = %w[c c++ objc obj-c++ fortran]
-
-    # Modula-2 has problems with macOS 15 for now
-    # https://github.com/Homebrew/homebrew-core/pull/221029
-    languages << "m2" if !OS.mac? || MacOS.version < :sequoia
+    languages = %w[c c++ objc obj-c++ fortran m2]
 
     pkgversion = "Homebrew GCC #{pkg_version} #{build.used_options*" "}".strip
 
@@ -104,11 +100,15 @@ class Gcc < Formula
     ]
 
     if OS.mac?
+      # Homebrew-specific workaround to avoid failure due to brew's install_name modification
+      inreplace "gcc/m2/Make-lang.in", "-Wl,-install_name,m2rte$(soext)",
+                                       "-Wl,-install_name,$(plugin_resourcesdir)/m2rte$(soext)"
+
       cpu = Hardware::CPU.arm? ? "aarch64" : "x86_64"
       args << "--build=#{cpu}-apple-darwin#{OS.kernel_version.major}"
 
       # System headers may not be in /usr/include
-      sdk = MacOS.sdk_path_if_needed
+      sdk = MacOS.sdk_path
       args << "--with-sysroot=#{sdk}" if sdk
 
       # Avoid this semi-random failure:
@@ -130,9 +130,6 @@ class Gcc < Formula
       inreplace "gcc/config/i386/t-linux64", "m64=../lib64", "m64="
       inreplace "gcc/config/aarch64/t-aarch64-linux", "lp64=../lib64", "lp64="
 
-      # Use our own (recent) binutils for as
-      args << "--with-as=#{Formula["binutils"].opt_bin}/as"
-
       ENV.append_path "CPATH", Formula["zlib-ng-compat"].opt_include
       ENV.append_path "LIBRARY_PATH", Formula["zlib-ng-compat"].opt_lib
     end
@@ -148,8 +145,8 @@ class Gcc < Formula
       # To make sure GCC does not record cellar paths, we configure it with
       # opt_prefix as the prefix. Then we use DESTDIR to install into a
       # temporary location, then move into the cellar path.
-      system "gmake", install_target, "DESTDIR=#{Pathname.pwd}/../instdir"
-      mv Dir[Pathname.pwd/"../instdir/#{opt_prefix}/*"], prefix
+      system "gmake", install_target, "DESTDIR=#{buildpath}/instdir"
+      prefix.install buildpath.glob("instdir/#{opt_prefix}/*")
     end
 
     bin.install_symlink bin/"gfortran-#{version_suffix}" => "gfortran"
@@ -168,10 +165,6 @@ class Gcc < Formula
     man7.glob("*.7") { |file| add_suffix file, version_suffix }
     # Even when we disable building info pages some are still installed.
     rm_r(info)
-
-    # Work around GCC install bug
-    # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105664
-    rm_r(bin.glob("*-gcc-tmp"))
   end
 
   def add_suffix(file, suffix)
