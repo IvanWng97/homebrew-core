@@ -175,6 +175,17 @@ class V8 < Formula
     end
   end
 
+  resource "third_party/llvm-libc/src" do
+    url "https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libc.git",
+        revision: "9309c117ebae84dd2f9df1ef99de4782162527d5"
+    version "9309c117ebae84dd2f9df1ef99de4782162527d5"
+
+    livecheck do
+      url "https://raw.githubusercontent.com/v8/v8/refs/tags/#{LATEST_VERSION}/DEPS"
+      regex(%r{["']/external/github.com/llvm/llvm-project/libc\.git["']\s*\+\s*["']@["']\s*\+\s*["']([0-9a-f]+)["']}i)
+    end
+  end
+
   resource "third_party/markupsafe" do
     url "https://chromium.googlesource.com/chromium/src/third_party/markupsafe.git",
         revision: "4256084ae14175d38a3ff7d739dca83ae49ccec6"
@@ -225,7 +236,13 @@ class V8 < Formula
     inreplace buildpath/"build/config/compiler/BUILD.gn" do |s|
       # GCC only flag, not supported by clang
       s.gsub! "cflags += [ \"-fno-lifetime-dse\" ]", ""
+      # Google clang fork only flag, not supported by clang, gcc
+      s.gsub! "cflags += [ \"-fdiagnostics-show-inlining-chain\" ]", ""
     end
+
+    # Google clang fork only flag, not supported by clang, gcc
+    inreplace buildpath/"build/config/sanitizers/sanitizers.gni",
+              "\"-fsanitize-ignore-for-ubsan-feature=${invoker.sanitizer}\",", ""
 
     # Build gn from source and add it to the PATH
     cd "gn" do
